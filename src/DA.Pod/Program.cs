@@ -157,6 +157,54 @@ public class AppCommands
                     File.SetLastWriteTime(fileOutputPath, item.PublishingDate.Value);
                 }
             }
+            else if (item.SpecificItem is Rss20FeedItem feedItem)
+            {
+                if (feedItem.Enclosure?.Url == null)
+                {
+                    consoleLog.LogWarning($"Item has no enclosure: {title}");
+                    continue;
+                }
+
+                var extenstion = feedItem.Enclosure.MediaType switch
+                {
+                    "audio/mpeg" => ".mp3",
+                    "audio/x-m4a" => ".m4a",
+                    "audio/x-wav" => ".wav",
+                    "audio/ogg" => ".ogg",
+                    "audio/flac" => ".flac",
+                    "audio/aac" => ".aac",
+                    "audio/x-ms-wma" => ".wma",
+                    "audio/x-ms-wax" => ".wax",
+                    "audio/x-ms-wmv" => ".wmv",
+                    _ => ".bin",
+                };
+
+                fileName += extenstion;
+
+                var fileOutputPath = Path.Combine(outputDirectory, fileName);
+
+                if (File.Exists(fileOutputPath))
+                {
+                    consoleLog.LogWarning($"File already exists: {title}");
+                    continue;
+                }
+
+                consoleLog.Log($"Downloading {title}");
+                await downloader.DownloadFileTaskAsync(feedItem.Enclosure.Url, fileOutputPath, cancellationToken);
+
+                if (!File.Exists(fileOutputPath))
+                {
+                    consoleLog.LogError($"Failed to download {title}");
+                    continue;
+                }
+
+                // Change file date to the published date.
+                if (item.PublishingDate != null)
+                {
+                    File.SetCreationTime(fileOutputPath, item.PublishingDate.Value);
+                    File.SetLastWriteTime(fileOutputPath, item.PublishingDate.Value);
+                }
+            }
             else
             {
                 consoleLog.LogWarning($"Item is not a media item: {title}");
